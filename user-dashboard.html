@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>User Dashboard – EMS</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    /* City filter bar */
+    .city-bar {
+      display: flex; flex-wrap: wrap; gap: .6rem;
+      margin-bottom: 1.5rem;
+    }
+    .city-btn {
+      padding: .4rem 1rem; border-radius: 20px; border: 2px solid var(--border);
+      background: #fff; cursor: pointer; font-size: .88rem; font-weight: 600;
+      transition: all .2s; color: #475569;
+    }
+    .city-btn:hover, .city-btn.active {
+      background: var(--primary); color: #fff; border-color: var(--primary);
+    }
+
+    /* Location cards grid */
+    .loc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.2rem;
+    }
+    .loc-card {
+      background: #fff; border-radius: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.07);
+      border: 1.5px solid var(--border);
+      overflow: hidden; transition: transform .2s, box-shadow .2s;
+    }
+    .loc-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(79,70,229,.15); }
+    .loc-card-header {
+      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      color: #fff; padding: 1rem 1.2rem;
+    }
+    .loc-card-header h3 { font-size: 1rem; margin-bottom: .2rem; }
+    .loc-card-header .city-tag {
+      font-size: .78rem; opacity: .85;
+      background: rgba(255,255,255,.2); padding: .15rem .6rem;
+      border-radius: 10px; display: inline-block;
+    }
+    .loc-card-body { padding: 1rem 1.2rem; }
+    .loc-info-row {
+      display: flex; align-items: flex-start; gap: .5rem;
+      font-size: .85rem; color: #475569; margin-bottom: .5rem;
+    }
+    .loc-info-row .icon { font-size: 1rem; flex-shrink: 0; margin-top: .05rem; }
+    .loc-stats {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: .5rem; margin: .8rem 0;
+    }
+    .loc-stat {
+      background: #f8fafc; border-radius: 8px;
+      padding: .5rem .7rem; text-align: center;
+    }
+    .loc-stat .val { font-size: 1rem; font-weight: 700; color: var(--primary); }
+    .loc-stat .lbl { font-size: .72rem; color: #64748b; }
+    .rate-badge {
+      background: #fef3c7; color: #92400e;
+      border-radius: 8px; padding: .4rem .8rem;
+      font-weight: 700; font-size: .95rem;
+      text-align: center; margin-bottom: .8rem;
+    }
+    .btn-book-now {
+      width: 100%; background: var(--primary); color: #fff;
+      border: none; border-radius: 8px; padding: .6rem;
+      font-size: .92rem; font-weight: 600; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-book-now:hover { background: var(--primary-d); }
+
+    /* Cost preview in booking form */
+    .cost-box {
+      background: #f0fdf4; border: 1.5px solid #6ee7b7;
+      border-radius: 10px; padding: .8rem 1rem;
+      margin-top: .5rem; display: none;
+    }
+    .cost-box .cost-row { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: .3rem; }
+    .cost-box .cost-total { font-weight: 700; font-size: 1.05rem; color: #065f46; border-top: 1px solid #6ee7b7; padding-top: .4rem; margin-top: .3rem; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="brand">🎪 Event<span>MS</span></div>
+  <div class="nav-links">
+    <span id="userName" style="color:#a5b4fc;font-weight:600"></span>
+    <a href="#" class="btn-logout" onclick="logout()">Logout</a>
+  </div>
+</nav>
+
+<div class="dashboard">
+  <aside class="sidebar">
+    <div class="menu-title">Menu</div>
+    <a href="#" class="active" onclick="showPanel('locations', this)"><span class="icon">📍</span> Browse Locations</a>
+    <a href="#" onclick="showPanel('book', this)"><span class="icon">📅</span> Book Event</a>
+    <a href="#" onclick="showPanel('mybookings', this)"><span class="icon">📋</span> My Bookings</a>
+    <a href="#" onclick="showPanel('payment', this)"><span class="icon">💳</span> Payment</a>
+    <a href="#" onclick="showPanel('profile', this)"><span class="icon">👤</span> My Profile</a>
+  </aside>
+
+  <main class="main-content">
+
+    <!-- ── Browse Locations Panel ── -->
+    <div id="panel-locations" class="panel active">
+      <h1 class="page-title">📍 Browse Event Locations</h1>
+
+      <!-- City Filter -->
+      <div class="city-bar" id="cityBar">
+        <button class="city-btn active" onclick="filterCity('', this)">🌐 All Cities</button>
+      </div>
+
+      <!-- Location Cards -->
+      <div class="loc-grid" id="locGrid">
+        <p style="color:#64748b">Loading locations...</p>
+      </div>
+    </div>
+
+    <!-- ── Book Event Panel ── -->
+    <div id="panel-book" class="panel">
+      <h1 class="page-title">📅 Book an Event Location</h1>
+      <div class="card" style="max-width:640px">
+        <div id="bookAlert" class="alert"></div>
+        <form id="bookingForm">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Your Name</label>
+              <input type="text" id="bUserName" class="form-control" required/>
+            </div>
+            <div class="form-group">
+              <label>Phone Number</label>
+              <input type="tel" id="bPhone" class="form-control" pattern="[0-9]{10}" placeholder="10 digits" required/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Event Name</label>
+            <input type="text" id="bEventName" class="form-control" placeholder="e.g. Annual Day Celebration" required/>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Event Date</label>
+              <input type="date" id="bEventDate" class="form-control" required/>
+            </div>
+            <div class="form-group">
+              <label>Number of People</label>
+              <input type="number" id="bStrength" class="form-control" min="1" placeholder="e.g. 200" required oninput="updateCost()"/>
+            </div>
+          </div>
+
+          <!-- City → Location two-step selector -->
+          <div class="form-row">
+            <div class="form-group">
+              <label>Select City</label>
+              <select id="bCity" class="form-control" onchange="loadBookingLocations()" required>
+                <option value="">-- Select City --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Select Location</label>
+              <select id="bLocation" class="form-control" onchange="onLocationSelect()" required>
+                <option value="">-- Select Location --</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Selected location info -->
+          <div id="locInfoBox" style="display:none;background:#f8fafc;border-radius:10px;padding:.8rem 1rem;margin-bottom:.8rem;font-size:.88rem;color:#475569;border:1.5px solid var(--border)">
+            <div id="locInfoText"></div>
+          </div>
+
+          <!-- Availability check -->
+          <button type="button" class="btn btn-outline" onclick="checkAvailability()" style="margin-bottom:.8rem">
+            🔍 Check Availability
+          </button>
+
+          <div id="availabilityBox" style="display:none" class="availability-box">
+            <div id="availStatus"></div>
+            <div id="capacityInfo" style="font-size:.85rem;margin-top:.3rem;font-weight:400"></div>
+          </div>
+
+          <!-- Cost preview -->
+          <div class="cost-box" id="costBox">
+            <div class="cost-row"><span>📍 Location Rate</span><span id="costRate">₹0 / day</span></div>
+            <div class="cost-row"><span>👥 People</span><span id="costPeople">0</span></div>
+            <div class="cost-row cost-total"><span>💰 Estimated Total Cost</span><span id="costTotal">₹0</span></div>
+          </div>
+
+          <!-- Payment Reason -->
+          <div class="form-group" style="margin-top:1rem">
+            <label>💳 Reason for Payment / Purpose of Event</label>
+            <select id="bPaymentReason" class="form-control" required>
+              <option value="">-- Select Reason --</option>
+              <option>Wedding Ceremony</option>
+              <option>Birthday Party</option>
+              <option>Corporate Meeting</option>
+              <option>Conference / Seminar</option>
+              <option>College Event / Annual Day</option>
+              <option>Cultural Program</option>
+              <option>Product Launch</option>
+              <option>Award Ceremony</option>
+              <option>Exhibition / Expo</option>
+              <option>Religious / Social Function</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem">
+            📩 Submit Booking
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── My Bookings Panel ── -->
+    <div id="panel-mybookings" class="panel">
+      <h1 class="page-title">📋 My Bookings</h1>
+      <div id="myBookingAlert" class="alert"></div>
+      <div class="card">
+        <div class="table-wrapper" id="myBookingsTable"></div>
+      </div>
+    </div>
+
+    <!-- ── Payment Panel ── -->
+    <div id="panel-payment" class="panel">
+      <h1 class="page-title">💳 Payment</h1>
+
+      <!-- Step 1: Approved bookings list -->
+      <div id="pay-step1">
+        <div class="card">
+          <h3 style="margin-bottom:1rem">📋 Your Approved Bookings — Select to Pay</h3>
+          <div id="payBookingList"><p style="color:#64748b">Loading...</p></div>
+        </div>
+      </div>
+
+      <!-- Step 2: Payment form -->
+      <div id="pay-step2" style="display:none">
+        <div class="card" style="max-width:560px">
+
+          <div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:12px;padding:1.2rem;margin-bottom:1.2rem">
+            <div style="font-weight:700;margin-bottom:.8rem;font-size:1rem">📋 Booking Summary</div>
+            <div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border);font-size:.9rem"><span style="color:#64748b">Event</span><b id="ps-event"></b></div>
+            <div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border);font-size:.9rem"><span style="color:#64748b">Location</span><b id="ps-location"></b></div>
+            <div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border);font-size:.9rem"><span style="color:#64748b">City</span><b id="ps-city"></b></div>
+            <div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border);font-size:.9rem"><span style="color:#64748b">Date</span><b id="ps-date"></b></div>
+            <div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border);font-size:.9rem"><span style="color:#64748b">People</span><b id="ps-people"></b></div>
+            <div style="display:flex;justify-content:space-between;padding:.35rem 0;font-size:.9rem"><span style="color:#64748b">Purpose</span><b id="ps-reason"></b></div>
+          </div>
+
+          <div style="background:var(--primary);color:#fff;border-radius:10px;padding:1rem;display:flex;justify-content:space-between;font-size:1.1rem;font-weight:700;margin-bottom:1.5rem">
+            <span>💰 Total Amount</span><span id="ps-total">₹0</span>
+          </div>
+
+          <div style="font-weight:700;margin-bottom:.8rem">Select Payment Method</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1.2rem">
+            <div class="pay-method" onclick="selectPayMethod('upi',this)" style="border:2px solid var(--border);border-radius:12px;padding:1rem;text-align:center;cursor:pointer"><div style="font-size:2rem">📱</div><div style="font-size:.88rem;font-weight:600">UPI</div></div>
+            <div class="pay-method" onclick="selectPayMethod('card',this)" style="border:2px solid var(--border);border-radius:12px;padding:1rem;text-align:center;cursor:pointer"><div style="font-size:2rem">💳</div><div style="font-size:.88rem;font-weight:600">Credit / Debit Card</div></div>
+            <div class="pay-method" onclick="selectPayMethod('net',this)" style="border:2px solid var(--border);border-radius:12px;padding:1rem;text-align:center;cursor:pointer"><div style="font-size:2rem">🏦</div><div style="font-size:.88rem;font-weight:600">Net Banking</div></div>
+            <div class="pay-method" onclick="selectPayMethod('venue',this)" style="border:2px solid var(--border);border-radius:12px;padding:1rem;text-align:center;cursor:pointer"><div style="font-size:2rem">💵</div><div style="font-size:.88rem;font-weight:600">Pay at Venue</div></div>
+          </div>
+
+          <div id="pf-upi" style="display:none">
+            <div class="form-group"><label>UPI ID</label><input type="text" id="upiId" class="form-control" placeholder="yourname@upi"/></div>
+            <button class="btn btn-primary" style="width:100%" onclick="processPayment('UPI')">Pay Now 💳</button>
+          </div>
+
+          <div id="pf-card" style="display:none">
+            <div class="form-group"><label>Card Number</label><input type="text" id="cardNo" class="form-control" placeholder="1234 5678 9012 3456" maxlength="19"/></div>
+            <div class="form-row">
+              <div class="form-group"><label>Expiry (MM/YY)</label><input type="text" id="cardExp" class="form-control" placeholder="MM/YY" maxlength="5"/></div>
+              <div class="form-group"><label>CVV</label><input type="password" id="cardCvv" class="form-control" placeholder="***" maxlength="3"/></div>
+            </div>
+            <div class="form-group"><label>Card Holder Name</label><input type="text" id="cardName" class="form-control" placeholder="Name on card"/></div>
+            <button class="btn btn-primary" style="width:100%" onclick="processPayment('Card')">Pay Now 💳</button>
+          </div>
+
+          <div id="pf-net" style="display:none">
+            <div class="form-group"><label>Select Bank</label>
+              <select id="bankName" class="form-control">
+                <option value="">-- Select Bank --</option>
+                <option>State Bank of India</option><option>HDFC Bank</option>
+                <option>ICICI Bank</option><option>Axis Bank</option>
+                <option>Kotak Mahindra Bank</option><option>Punjab National Bank</option>
+                <option>Bank of Baroda</option><option>Canara Bank</option>
+                <option>Union Bank of India</option><option>Yes Bank</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="width:100%" onclick="processPayment('Net Banking')">Pay Now 💳</button>
+          </div>
+
+          <div id="pf-venue" style="display:none">
+            <div class="alert alert-info show">💡 You chose <b>Pay at Venue</b>. Please carry the exact amount on event day.</div>
+            <button class="btn btn-warning" style="width:100%" onclick="processPayment('Pay at Venue')">Confirm 📋</button>
+          </div>
+
+          <button class="btn btn-outline" style="width:100%;margin-top:.8rem" onclick="backToList()">← Back</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Receipt -->
+      <div id="pay-step3" style="display:none;text-align:center">
+        <div style="width:80px;height:80px;background:var(--success);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;margin:0 auto 1rem">✅</div>
+        <h2 style="color:var(--success);margin-bottom:.4rem">Payment Successful!</h2>
+        <p style="color:#64748b;margin-bottom:1.5rem">Your booking is confirmed. Here is your receipt.</p>
+        <div style="background:#f8fafc;border:2px dashed var(--success);border-radius:12px;padding:1.5rem;max-width:500px;margin:0 auto 1.5rem;text-align:left">
+          <div style="text-align:center;font-weight:700;font-size:1.1rem;margin-bottom:1rem">🧾 Payment Receipt</div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.88rem"><span>Transaction ID</span><span id="r-txn" style="font-weight:700;color:var(--primary)"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.88rem"><span>Payment Method</span><span id="r-method" style="font-weight:600"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.88rem"><span>Event Name</span><span id="r-event"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.88rem"><span>Location</span><span id="r-loc"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.88rem"><span>City</span><span id="r-city"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.88rem"><span>Event Date</span><span id="r-date"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.88rem"><span>People</span><span id="r-people"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.88rem"><span>Purpose</span><span id="r-reason"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.88rem"><span>Amount Paid</span><span id="r-amount" style="font-weight:700;color:var(--success)"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px dashed var(--border);font-size:.88rem"><span>Payment Date</span><span id="r-paydate"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:.4rem 0;font-size:.88rem"><span>Status</span><span style="color:var(--success);font-weight:700">✅ PAID</span></div>
+        </div>
+        <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="window.print()">🖨️ Print Receipt</button>
+          <button class="btn btn-outline" onclick="showPanel('mybookings',null)">← My Bookings</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Profile Panel ── -->
+    <div id="panel-profile" class="panel">
+      <h1 class="page-title">👤 My Profile</h1>
+      <div class="card" style="max-width:480px">
+        <div id="profileAlert" class="alert"></div>
+        <form id="profileForm">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="pName" class="form-control" required/>
+          </div>
+          <div class="form-group">
+            <label>Email (cannot change)</label>
+            <input type="email" id="pEmail" class="form-control readonly" readonly/>
+          </div>
+          <div class="form-group">
+            <label>Phone Number</label>
+            <input type="tel" id="pPhone" class="form-control" pattern="[0-9]{10}" required/>
+          </div>
+          <div class="form-group">
+            <label>New Password (leave blank to keep current)</label>
+            <input type="password" id="pPassword" class="form-control" placeholder="Enter new password"/>
+          </div>
+          <button type="submit" class="btn btn-primary">Update Profile</button>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  if (!sessionStorage.getItem('userId')) window.location.href = 'user-login.html';
+
+  const userId   = sessionStorage.getItem('userId');
+  const userName = sessionStorage.getItem('userName');
+  document.getElementById('userName').textContent = '👋 ' + userName;
+  document.getElementById('bUserName').value = userName;
+  document.getElementById('bEventDate').min  = new Date().toISOString().split('T')[0];
+
+  let allLocations = [];   // cache all locations
+  let selectedRate = 0;    // rate of currently selected location
+
+  // ── Panel Navigation ────────────────────────────────────────────────────────
+  function showPanel(name, el) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    if (el) el.closest('a').classList.add('active');
+    if (name === 'mybookings') loadMyBookings();
+    if (name === 'profile')    loadProfile();
+    if (name === 'book')       loadCityDropdown();
+    if (name === 'payment')    { loadPaymentBookings(); document.getElementById('pay-step1').style.display='block'; document.getElementById('pay-step2').style.display='none'; document.getElementById('pay-step3').style.display='none'; }
+  }
+
+  // ── Load Locations Page ──────────────────────────────────────────────────────
+  async function loadLocationsPage() {
+    allLocations = await apiFetch('/api/locations');
+    const cities = await apiFetch('/api/locations/cities');
+
+    // Build city filter buttons
+    const bar = document.getElementById('cityBar');
+    cities.forEach(city => {
+      const btn = document.createElement('button');
+      btn.className = 'city-btn';
+      btn.textContent = '🏙️ ' + city;
+      btn.onclick = () => filterCity(city, btn);
+      bar.appendChild(btn);
+    });
+
+    renderLocationCards(allLocations);
+  }
+
+  function filterCity(city, btn) {
+    document.querySelectorAll('.city-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const filtered = city ? allLocations.filter(l => l.city === city) : allLocations;
+    renderLocationCards(filtered);
+  }
+
+  function renderLocationCards(locs) {
+    const grid = document.getElementById('locGrid');
+    if (!locs.length) { grid.innerHTML = '<p style="color:#64748b">No locations found.</p>'; return; }
+
+    grid.innerHTML = locs.map(l => {
+      const badge = l.availableStatus === 'Available'
+        ? '<span class="badge badge-available">✅ Available</span>'
+        : '<span class="badge badge-unavailable">❌ Not Available</span>';
+      return `
+        <div class="loc-card">
+          <div class="loc-card-header">
+            <h3>🏛️ ${l.locationName}</h3>
+            <span class="city-tag">📍 ${l.city}</span>
+          </div>
+          <div class="loc-card-body">
+            <div class="loc-info-row"><span class="icon">🏘️</span><span>${l.area}</span></div>
+            <div class="loc-info-row"><span class="icon">📌</span><span>${l.address}</span></div>
+            <div class="loc-stats">
+              <div class="loc-stat">
+                <div class="val">👥 ${l.totalCapacity.toLocaleString()}</div>
+                <div class="lbl">Total Capacity</div>
+              </div>
+              <div class="loc-stat">
+                <div class="val">${badge}</div>
+                <div class="lbl">Status</div>
+              </div>
+            </div>
+            <div class="rate-badge">💰 ₹${l.ratePerDay.toLocaleString('en-IN')} / day</div>
+            <button class="btn-book-now" onclick="goBook('${l.city}','${l.locationName}')">
+              📅 Book This Venue
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // Click "Book This Venue" → switch to book panel with pre-selected city & location
+  function goBook(city, locName) {
+    showPanel('book', document.querySelector('.sidebar a:nth-child(2)'));
+    // Wait for dropdowns to load then set values
+    setTimeout(async () => {
+      document.getElementById('bCity').value = city;
+      await loadBookingLocations();
+      document.getElementById('bLocation').value = locName;
+      onLocationSelect();
+    }, 300);
+  }
+
+  // ── Book Panel: City Dropdown ────────────────────────────────────────────────
+  async function loadCityDropdown() {
+    const cities = await apiFetch('/api/locations/cities');
+    const sel = document.getElementById('bCity');
+    // Clear except first option
+    sel.innerHTML = '<option value="">-- Select City --</option>';
+    cities.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function loadBookingLocations() {
+    const city = document.getElementById('bCity').value;
+    const locs = city ? await apiFetch('/api/locations?city=' + encodeURIComponent(city))
+                      : await apiFetch('/api/locations');
+    const sel = document.getElementById('bLocation');
+    sel.innerHTML = '<option value="">-- Select Location --</option>';
+    locs.forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l.locationName;
+      opt.textContent = l.locationName + ' (Cap: ' + l.totalCapacity + ')';
+      opt.dataset.rate    = l.ratePerDay;
+      opt.dataset.area    = l.area;
+      opt.dataset.address = l.address;
+      opt.dataset.cap     = l.totalCapacity;
+      sel.appendChild(opt);
+    });
+    document.getElementById('locInfoBox').style.display = 'none';
+    document.getElementById('availabilityBox').style.display = 'none';
+    document.getElementById('costBox').style.display = 'none';
+  }
+
+  function onLocationSelect() {
+    const sel = document.getElementById('bLocation');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.dataset.rate) return;
+
+    selectedRate = parseFloat(opt.dataset.rate);
+    document.getElementById('locInfoBox').style.display = 'block';
+    document.getElementById('locInfoText').innerHTML =
+      `🏘️ <b>Area:</b> ${opt.dataset.area} &nbsp;|&nbsp; 📌 <b>Address:</b> ${opt.dataset.address} &nbsp;|&nbsp; 👥 <b>Capacity:</b> ${parseInt(opt.dataset.cap).toLocaleString()} &nbsp;|&nbsp; 💰 <b>Rate:</b> ₹${selectedRate.toLocaleString('en-IN')}/day`;
+
+    updateCost();
+  }
+
+  function updateCost() {
+    if (!selectedRate) return;
+    const people = parseInt(document.getElementById('bStrength').value) || 0;
+    document.getElementById('costBox').style.display = 'block';
+    document.getElementById('costRate').textContent   = '₹' + selectedRate.toLocaleString('en-IN') + ' / day';
+    document.getElementById('costPeople').textContent = people;
+    document.getElementById('costTotal').textContent  = '₹' + selectedRate.toLocaleString('en-IN');
+  }
+
+  // ── Check Availability ───────────────────────────────────────────────────────
+  async function checkAvailability() {
+    const locName  = document.getElementById('bLocation').value;
+    const date     = document.getElementById('bEventDate').value;
+    const strength = parseInt(document.getElementById('bStrength').value) || 0;
+    if (!locName || !date) { alert('Please select a location and event date first.'); return; }
+
+    const data = await apiFetch('/api/locations/capacity?locationName=' + encodeURIComponent(locName) + '&eventDate=' + date);
+    const box  = document.getElementById('availabilityBox');
+    const stat = document.getElementById('availStatus');
+    const info = document.getElementById('capacityInfo');
+
+    box.style.display = 'block';
+    info.textContent  = `Total Capacity: ${data.totalCapacity} | Remaining: ${data.remainingCapacity}` +
+                        (strength > 0 ? ` | Your Request: ${strength}` : '');
+
+    if (data.remainingCapacity <= 0 || (strength > 0 && strength > data.remainingCapacity)) {
+      box.className = 'availability-box unavailable';
+      stat.textContent = '❌ Location Not Available for selected date';
+    } else {
+      box.className = 'availability-box available';
+      stat.textContent = '✅ Location Available — Ready to Book!';
+    }
+  }
+
+  // ── Submit Booking ───────────────────────────────────────────────────────────
+  document.getElementById('bookingForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const locName  = document.getElementById('bLocation').value;
+    const date     = document.getElementById('bEventDate').value;
+    const strength = document.getElementById('bStrength').value;
+    const city     = document.getElementById('bCity').value;
+
+    const body = [
+      'userName='      + encodeURIComponent(document.getElementById('bUserName').value),
+      'eventName='     + encodeURIComponent(document.getElementById('bEventName').value),
+      'eventDate='     + date,
+      'phoneNumber='   + encodeURIComponent(document.getElementById('bPhone').value),
+      'locationName='  + encodeURIComponent(locName),
+      'city='          + encodeURIComponent(city),
+      'peopleStrength='+ strength,
+      'totalCost='     + selectedRate,
+      'paymentReason=' + encodeURIComponent(document.getElementById('bPaymentReason').value),
+      'userId='        + userId
+    ].join('&');
+
+    const res = await apiFetch('/api/bookings/create', 'POST', body);
+    showAlert('bookAlert', res.message, res.success ? 'success' : 'danger');
+    if (res.success) {
+      this.reset();
+      document.getElementById('bUserName').value = userName;
+      document.getElementById('availabilityBox').style.display = 'none';
+      document.getElementById('costBox').style.display = 'none';
+      document.getElementById('locInfoBox').style.display = 'none';
+      selectedRate = 0;
+    }
+  });
+
+  // ── My Bookings ──────────────────────────────────────────────────────────────
+  async function loadMyBookings() {
+    const bookings = await apiFetch('/api/bookings/user?userId=' + userId);
+    if (!bookings.length) {
+      document.getElementById('myBookingsTable').innerHTML =
+        '<p style="color:#64748b;padding:1rem">No bookings yet. Browse locations to book!</p>';
+      return;
+    }
+    let html = `<table>
+      <thead><tr>
+        <th>#</th><th>Event</th><th>Date</th><th>Location</th><th>City</th>
+        <th>Strength</th><th>Cost</th><th>Payment Reason</th><th>Status</th><th>Action</th>
+      </tr></thead><tbody>`;
+    bookings.forEach(b => {
+      html += `<tr>
+        <td>${b.bookingId}</td>
+        <td>${b.eventName}</td>
+        <td>${b.eventDate}</td>
+        <td>${b.locationName}</td>
+        <td>${b.city || '—'}</td>
+        <td>${b.peopleStrength}</td>
+        <td>₹${(b.totalCost||0).toLocaleString('en-IN')}</td>
+        <td>${b.paymentReason || '—'}</td>
+        <td><span class="badge badge-${b.bookingStatus.toLowerCase()}">${b.bookingStatus}</span></td>
+        <td>${b.bookingStatus === 'Pending'
+          ? `<button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.bookingId})">Cancel</button>`
+          : b.bookingStatus === 'Approved'
+          ? `<button class="btn btn-success btn-sm" onclick="payNow(${b.bookingId})">💳 Pay Now</button>`
+          : '—'}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('myBookingsTable').innerHTML = html;
+  }
+
+  async function cancelBooking(bookingId) {
+    if (!confirm('Cancel this booking?')) return;
+    const res = await apiFetch('/api/bookings/cancel', 'POST', `bookingId=${bookingId}&userId=${userId}`);
+    showAlert('myBookingAlert', res.message, res.success ? 'success' : 'danger');
+    loadMyBookings();
+  }
+
+  function payNow(bookingId) {
+    apiFetch('/api/bookings/user?userId=' + userId).then(bookings => {
+      const b = bookings.find(x => x.bookingId === bookingId);
+      if (b) openPaymentForm(b);
+    });
+  }
+
+  let currentBooking = null;
+
+  function openPaymentForm(b) {
+    currentBooking = b;
+    // Fill summary
+    document.getElementById('ps-event').textContent    = b.eventName;
+    document.getElementById('ps-location').textContent = b.locationName;
+    document.getElementById('ps-city').textContent     = b.city || '—';
+    document.getElementById('ps-date').textContent     = b.eventDate;
+    document.getElementById('ps-people').textContent   = b.peopleStrength;
+    document.getElementById('ps-reason').textContent   = b.paymentReason || '—';
+    document.getElementById('ps-total').textContent    = '₹' + Number(b.totalCost||0).toLocaleString('en-IN');
+    // Reset method forms
+    document.querySelectorAll('[id^="pf-"]').forEach(f => f.style.display = 'none');
+    document.querySelectorAll('.pay-method').forEach(m => m.style.border = '2px solid var(--border)');
+    // Show payment panel step 2
+    document.getElementById('pay-step1').style.display = 'none';
+    document.getElementById('pay-step2').style.display = 'block';
+    document.getElementById('pay-step3').style.display = 'none';
+    showPanel('payment', document.querySelector('.sidebar a:nth-child(4)'));
+  }
+
+  function loadPaymentBookings() {
+    apiFetch('/api/bookings/user?userId=' + userId).then(bookings => {
+      const approved = bookings.filter(b => b.bookingStatus === 'Approved');
+      const el = document.getElementById('payBookingList');
+      if (!approved.length) {
+        el.innerHTML = '<div class="alert alert-info show">No approved bookings yet. Admin needs to approve your booking first before payment.</div>';
+        return;
+      }
+      el.innerHTML = approved.map(b => `
+        <div style="border:1.5px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:.8rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+          <div>
+            <div style="font-weight:700;font-size:1rem">📅 ${b.eventName}</div>
+            <div style="font-size:.85rem;color:#64748b">📍 ${b.locationName}, ${b.city || ''} &nbsp;|&nbsp; 🗓️ ${b.eventDate} &nbsp;|&nbsp; 👥 ${b.peopleStrength} people</div>
+            <div style="font-size:.85rem;color:#64748b">💬 ${b.paymentReason || '—'}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:1.2rem;font-weight:800;color:var(--primary)">₹${Number(b.totalCost||0).toLocaleString('en-IN')}</div>
+            <button class="btn btn-success btn-sm" style="margin-top:.4rem" onclick="openPaymentForm(${JSON.stringify(b).replace(/"/g,'&quot;')})" >💳 Pay Now</button>
+          </div>
+        </div>`).join('');
+    });
+  }
+
+  function selectPayMethod(method, el) {
+    document.querySelectorAll('.pay-method').forEach(m => m.style.border = '2px solid var(--border)');
+    document.querySelectorAll('[id^="pf-"]').forEach(f => f.style.display = 'none');
+    el.style.border = '2px solid var(--primary)';
+    el.style.background = '#eef2ff';
+    document.getElementById('pf-' + method).style.display = 'block';
+  }
+
+  function backToList() {
+    document.getElementById('pay-step1').style.display = 'block';
+    document.getElementById('pay-step2').style.display = 'none';
+    document.getElementById('pay-step3').style.display = 'none';
+  }
+
+  function processPayment(method) {
+    if (method === 'UPI') {
+      const upi = document.getElementById('upiId').value.trim();
+      if (!upi || !upi.includes('@')) { alert('Enter a valid UPI ID (e.g. name@upi)'); return; }
+    }
+    if (method === 'Card') {
+      const num = document.getElementById('cardNo').value.replace(/\s/g,'');
+      const exp = document.getElementById('cardExp').value.trim();
+      const cvv = document.getElementById('cardCvv').value.trim();
+      const nm  = document.getElementById('cardName').value.trim();
+      if (num.length < 16) { alert('Enter a valid 16-digit card number'); return; }
+      if (!exp.match(/^\d{2}\/\d{2}$/)) { alert('Enter expiry as MM/YY'); return; }
+      if (cvv.length < 3)  { alert('Enter a valid 3-digit CVV'); return; }
+      if (!nm)             { alert('Enter card holder name'); return; }
+    }
+    if (method === 'Net Banking' && !document.getElementById('bankName').value) {
+      alert('Please select a bank'); return;
+    }
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ Processing...';
+    setTimeout(() => showReceipt(method), 2000);
+  }
+
+  function showReceipt(method) {
+    const b      = currentBooking;
+    const txnId  = 'EMS' + Date.now().toString().slice(-8).toUpperCase();
+    const now    = new Date();
+    const payDate = now.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    document.getElementById('r-txn').textContent    = txnId;
+    document.getElementById('r-method').textContent = method;
+    document.getElementById('r-event').textContent  = b.eventName;
+    document.getElementById('r-loc').textContent    = b.locationName;
+    document.getElementById('r-city').textContent   = b.city || '—';
+    document.getElementById('r-date').textContent   = b.eventDate;
+    document.getElementById('r-people').textContent = b.peopleStrength;
+    document.getElementById('r-reason').textContent = b.paymentReason || '—';
+    document.getElementById('r-amount').textContent = '₹' + Number(b.totalCost||0).toLocaleString('en-IN');
+    document.getElementById('r-paydate').textContent = payDate;
+    document.getElementById('pay-step1').style.display = 'none';
+    document.getElementById('pay-step2').style.display = 'none';
+    document.getElementById('pay-step3').style.display = 'block';
+  }
+
+  // ── Profile ──────────────────────────────────────────────────────────────────
+  function loadProfile() {
+    document.getElementById('pName').value  = sessionStorage.getItem('userName');
+    document.getElementById('pEmail').value = sessionStorage.getItem('userEmail');
+    document.getElementById('pPhone').value = sessionStorage.getItem('userPhone');
+  }
+
+  document.getElementById('profileForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const name     = document.getElementById('pName').value.trim();
+    const phone    = document.getElementById('pPhone').value.trim();
+    const password = document.getElementById('pPassword').value || 'unchanged';
+    const res = await apiFetch('/api/user/profile', 'POST',
+      `userId=${userId}&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}&password=${encodeURIComponent(password)}`);
+    showAlert('profileAlert', res.message, res.success ? 'success' : 'danger');
+    if (res.success) {
+      sessionStorage.setItem('userName', name);
+      sessionStorage.setItem('userPhone', phone);
+      document.getElementById('userName').textContent = '👋 ' + name;
+    }
+  });
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  async function apiFetch(url, method = 'GET', body = null) {
+    const opts = { method, headers: {} };
+    if (body) { opts.body = body; opts.headers['Content-Type'] = 'application/x-www-form-urlencoded'; }
+    const res = await fetch(url, opts);
+    return res.json();
+  }
+
+  function showAlert(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = `alert alert-${type} show`;
+    setTimeout(() => el.classList.remove('show'), 4000);
+  }
+
+  function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+
+  // Load locations on page load
+  loadLocationsPage();
+</script>
+</body>
+</html>

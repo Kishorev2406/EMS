@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment – EMS</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .payment-wrapper {
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .payment-steps {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      position: relative;
+    }
+    .payment-steps::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 10%;
+      right: 10%;
+      height: 3px;
+      background: var(--border);
+      z-index: 0;
+    }
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .4rem;
+      z-index: 1;
+    }
+    .step-circle {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: var(--border);
+      color: #64748b;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1rem;
+    }
+    .step.active .step-circle  { background: var(--primary); color: #fff; }
+    .step.done .step-circle    { background: var(--success);  color: #fff; }
+    .step-label { font-size: .75rem; color: #64748b; font-weight: 600; }
+    .step.active .step-label   { color: var(--primary); }
+    .step.done .step-label     { color: var(--success); }
+
+    /* Booking summary box */
+    .summary-box {
+      background: #f8fafc;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem;
+      margin-bottom: 1.5rem;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: .45rem 0;
+      font-size: .92rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row .label { color: #64748b; }
+    .summary-row .value { font-weight: 600; color: var(--dark); }
+    .summary-total {
+      background: var(--primary);
+      color: #fff;
+      border-radius: 10px;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Payment method cards */
+    .payment-methods {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .8rem;
+      margin-bottom: 1.5rem;
+    }
+    .method-card {
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .method-card:hover { border-color: var(--primary); background: #f0f0ff; }
+    .method-card.selected { border-color: var(--primary); background: #eef2ff; }
+    .method-card .m-icon { font-size: 2rem; margin-bottom: .4rem; }
+    .method-card .m-name { font-size: .88rem; font-weight: 600; color: var(--dark); }
+
+    /* UPI form */
+    .payment-form { display: none; }
+    .payment-form.show { display: block; }
+
+    /* Success screen */
+    .success-screen {
+      display: none;
+      text-align: center;
+      padding: 2rem;
+    }
+    .success-screen.show { display: block; }
+    .success-icon {
+      width: 80px; height: 80px;
+      background: var(--success);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.5rem;
+      margin: 0 auto 1.2rem;
+    }
+    .receipt-box {
+      background: #f8fafc;
+      border: 2px dashed var(--success);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      text-align: left;
+    }
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      padding: .4rem 0;
+      font-size: .88rem;
+      border-bottom: 1px dashed var(--border);
+    }
+    .receipt-row:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="brand">🎪 Event<span>MS</span></div>
+  <div class="nav-links">
+    <a href="user-dashboard.html">← Back to Dashboard</a>
+  </div>
+</nav>
+
+<div class="payment-wrapper">
+
+  <!-- Steps -->
+  <div class="payment-steps">
+    <div class="step done"  id="step1"><div class="step-circle">✓</div><div class="step-label">Booking</div></div>
+    <div class="step active" id="step2"><div class="step-circle">2</div><div class="step-label">Payment</div></div>
+    <div class="step"       id="step3"><div class="step-circle">3</div><div class="step-label">Confirm</div></div>
+  </div>
+
+  <!-- Payment Section -->
+  <div id="paymentSection">
+    <h2 style="margin-bottom:1.2rem">💳 Complete Your Payment</h2>
+
+    <!-- Booking Summary -->
+    <div class="summary-box" id="summaryBox">
+      <div style="font-weight:700;margin-bottom:.8rem;font-size:1rem">📋 Booking Summary</div>
+      <div class="summary-row"><span class="label">Event Name</span>    <span class="value" id="s-event">—</span></div>
+      <div class="summary-row"><span class="label">Location</span>      <span class="value" id="s-location">—</span></div>
+      <div class="summary-row"><span class="label">City</span>          <span class="value" id="s-city">—</span></div>
+      <div class="summary-row"><span class="label">Event Date</span>    <span class="value" id="s-date">—</span></div>
+      <div class="summary-row"><span class="label">People</span>        <span class="value" id="s-people">—</span></div>
+      <div class="summary-row"><span class="label">Payment Reason</span><span class="value" id="s-reason">—</span></div>
+    </div>
+
+    <div class="summary-total">
+      <span>💰 Total Amount</span>
+      <span id="s-total">₹0</span>
+    </div>
+
+    <!-- Payment Method Selection -->
+    <div style="font-weight:700;margin-bottom:.8rem">Select Payment Method</div>
+    <div class="payment-methods">
+      <div class="method-card" onclick="selectMethod('upi',this)">
+        <div class="m-icon">📱</div>
+        <div class="m-name">UPI</div>
+      </div>
+      <div class="method-card" onclick="selectMethod('card',this)">
+        <div class="m-icon">💳</div>
+        <div class="m-name">Credit / Debit Card</div>
+      </div>
+      <div class="method-card" onclick="selectMethod('netbanking',this)">
+        <div class="m-icon">🏦</div>
+        <div class="m-name">Net Banking</div>
+      </div>
+      <div class="method-card" onclick="selectMethod('cash',this)">
+        <div class="m-icon">💵</div>
+        <div class="m-name">Pay at Venue</div>
+      </div>
+    </div>
+
+    <!-- UPI Form -->
+    <div class="payment-form card" id="form-upi">
+      <div class="form-group">
+        <label>UPI ID</label>
+        <input type="text" id="upiId" class="form-control" placeholder="yourname@upi"/>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="processPayment('UPI')">Pay Now</button>
+    </div>
+
+    <!-- Card Form -->
+    <div class="payment-form card" id="form-card">
+      <div class="form-group">
+        <label>Card Number</label>
+        <input type="text" id="cardNumber" class="form-control" placeholder="1234 5678 9012 3456" maxlength="19" oninput="formatCard(this)"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Expiry Date</label>
+          <input type="text" id="cardExpiry" class="form-control" placeholder="MM/YY" maxlength="5"/>
+        </div>
+        <div class="form-group">
+          <label>CVV</label>
+          <input type="password" id="cardCvv" class="form-control" placeholder="***" maxlength="3"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Card Holder Name</label>
+        <input type="text" id="cardName" class="form-control" placeholder="Name on card"/>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="processPayment('Card')">Pay Now</button>
+    </div>
+
+    <!-- Net Banking Form -->
+    <div class="payment-form card" id="form-netbanking">
+      <div class="form-group">
+        <label>Select Bank</label>
+        <select id="bankName" class="form-control">
+          <option value="">-- Select Bank --</option>
+          <option>State Bank of India</option>
+          <option>HDFC Bank</option>
+          <option>ICICI Bank</option>
+          <option>Axis Bank</option>
+          <option>Kotak Mahindra Bank</option>
+          <option>Punjab National Bank</option>
+          <option>Bank of Baroda</option>
+          <option>Canara Bank</option>
+          <option>Union Bank of India</option>
+          <option>Yes Bank</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="processPayment('Net Banking')">Pay Now</button>
+    </div>
+
+    <!-- Pay at Venue -->
+    <div class="payment-form card" id="form-cash">
+      <div class="alert alert-info show">
+        💡 You have chosen to <strong>Pay at Venue</strong>. Please carry the exact amount on the event day.
+        Your booking will be marked as <strong>Pending Payment</strong>.
+      </div>
+      <button class="btn btn-warning" style="width:100%" onclick="processPayment('Pay at Venue')">Confirm Booking</button>
+    </div>
+  </div>
+
+  <!-- Success Screen -->
+  <div class="success-screen" id="successScreen">
+    <div class="success-icon">✅</div>
+    <h2 style="color:var(--success);margin-bottom:.5rem">Payment Successful!</h2>
+    <p style="color:#64748b;margin-bottom:1.5rem">Your booking has been confirmed. Receipt details below.</p>
+
+    <div class="receipt-box">
+      <div style="text-align:center;font-weight:700;font-size:1.1rem;margin-bottom:1rem">🧾 Payment Receipt</div>
+      <div class="receipt-row"><span>Transaction ID</span>    <span id="r-txnId"  style="font-weight:600;color:var(--primary)"></span></div>
+      <div class="receipt-row"><span>Payment Method</span>   <span id="r-method" style="font-weight:600"></span></div>
+      <div class="receipt-row"><span>Event Name</span>       <span id="r-event"></span></div>
+      <div class="receipt-row"><span>Location</span>         <span id="r-location"></span></div>
+      <div class="receipt-row"><span>Event Date</span>       <span id="r-date"></span></div>
+      <div class="receipt-row"><span>People</span>           <span id="r-people"></span></div>
+      <div class="receipt-row"><span>Payment Reason</span>   <span id="r-reason"></span></div>
+      <div class="receipt-row"><span>Amount Paid</span>      <span id="r-amount" style="font-weight:700;color:var(--success)"></span></div>
+      <div class="receipt-row"><span>Payment Date</span>     <span id="r-paydate"></span></div>
+      <div class="receipt-row"><span>Status</span>           <span style="color:var(--success);font-weight:700">✅ PAID</span></div>
+    </div>
+
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="printReceipt()">🖨️ Print Receipt</button>
+      <a href="user-dashboard.html" class="btn btn-outline">← Back to Dashboard</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Get booking data passed from dashboard
+  const booking = JSON.parse(sessionStorage.getItem('paymentBooking') || '{}');
+
+  // Fill summary
+  document.getElementById('s-event').textContent    = booking.eventName    || '—';
+  document.getElementById('s-location').textContent = booking.locationName || '—';
+  document.getElementById('s-city').textContent     = booking.city         || '—';
+  document.getElementById('s-date').textContent     = booking.eventDate    || '—';
+  document.getElementById('s-people').textContent   = booking.peopleStrength || '—';
+  document.getElementById('s-reason').textContent   = booking.paymentReason  || '—';
+  document.getElementById('s-total').textContent    = '₹' + Number(booking.totalCost || 0).toLocaleString('en-IN');
+
+  let selectedPayMethod = '';
+
+  function selectMethod(method, el) {
+    // Deselect all
+    document.querySelectorAll('.method-card').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.payment-form').forEach(f => f.classList.remove('show'));
+    // Select clicked
+    el.classList.add('selected');
+    document.getElementById('form-' + method).classList.add('show');
+    selectedPayMethod = method;
+  }
+
+  function formatCard(input) {
+    let val = input.value.replace(/\D/g, '').substring(0, 16);
+    input.value = val.replace(/(.{4})/g, '$1 ').trim();
+  }
+
+  function processPayment(method) {
+    // Basic validation
+    if (method === 'UPI') {
+      const upi = document.getElementById('upiId').value.trim();
+      if (!upi || !upi.includes('@')) { alert('Please enter a valid UPI ID (e.g. name@upi)'); return; }
+    }
+    if (method === 'Card') {
+      const num  = document.getElementById('cardNumber').value.replace(/\s/g,'');
+      const exp  = document.getElementById('cardExpiry').value.trim();
+      const cvv  = document.getElementById('cardCvv').value.trim();
+      const name = document.getElementById('cardName').value.trim();
+      if (num.length < 16) { alert('Please enter a valid 16-digit card number'); return; }
+      if (!exp.match(/^\d{2}\/\d{2}$/)) { alert('Please enter expiry as MM/YY'); return; }
+      if (cvv.length < 3)  { alert('Please enter a valid 3-digit CVV'); return; }
+      if (!name)           { alert('Please enter card holder name'); return; }
+    }
+    if (method === 'Net Banking') {
+      if (!document.getElementById('bankName').value) { alert('Please select a bank'); return; }
+    }
+
+    // Simulate payment processing
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ Processing...';
+
+    setTimeout(() => {
+      showSuccess(method);
+    }, 2000);
+  }
+
+  function showSuccess(method) {
+    // Generate transaction ID
+    const txnId = 'EMS' + Date.now().toString().slice(-8).toUpperCase();
+    const now   = new Date();
+    const payDate = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric',
+                                                       hour:'2-digit', minute:'2-digit' });
+
+    // Fill receipt
+    document.getElementById('r-txnId').textContent    = txnId;
+    document.getElementById('r-method').textContent   = method;
+    document.getElementById('r-event').textContent    = booking.eventName    || '—';
+    document.getElementById('r-location').textContent = booking.locationName || '—';
+    document.getElementById('r-date').textContent     = booking.eventDate    || '—';
+    document.getElementById('r-people').textContent   = booking.peopleStrength || '—';
+    document.getElementById('r-reason').textContent   = booking.paymentReason  || '—';
+    document.getElementById('r-amount').textContent   = '₹' + Number(booking.totalCost || 0).toLocaleString('en-IN');
+    document.getElementById('r-paydate').textContent  = payDate;
+
+    // Update steps
+    document.getElementById('step2').className = 'step done';
+    document.getElementById('step2').querySelector('.step-circle').textContent = '✓';
+    document.getElementById('step3').className = 'step active';
+
+    // Show success
+    document.getElementById('paymentSection').style.display = 'none';
+    document.getElementById('successScreen').classList.add('show');
+
+    // Save receipt to session
+    sessionStorage.setItem('lastReceipt', JSON.stringify({
+      txnId, method, payDate,
+      ...booking
+    }));
+  }
+
+  function printReceipt() {
+    window.print();
+  }
+</script>
+</body>
+</html>

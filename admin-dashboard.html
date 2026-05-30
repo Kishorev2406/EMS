@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard – EMS</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="brand">🎪 Event<span>MS</span> — Admin</div>
+  <div class="nav-links">
+    <span id="adminName" style="color:#a5b4fc;font-weight:600"></span>
+    <a href="#" class="btn-logout" onclick="logout()">Logout</a>
+  </div>
+</nav>
+
+<div class="dashboard">
+  <aside class="sidebar">
+    <div class="menu-title">Main Menu</div>
+    <a href="#" class="active" onclick="showPanel('dashboard',this)"><span class="icon">📊</span> Dashboard</a>
+    <a href="#" onclick="showPanel('bookings',this)"><span class="icon">📋</span> All Bookings</a>
+    <a href="#" onclick="showPanel('locations',this)"><span class="icon">📍</span> Locations</a>
+    <a href="#" onclick="showPanel('users',this)"><span class="icon">👥</span> Users</a>
+    <div class="menu-title">Actions</div>
+    <a href="#" onclick="showPanel('addLocation',this)"><span class="icon">➕</span> Add Location</a>
+  </aside>
+
+  <main class="main-content">
+
+    <!-- Dashboard Panel -->
+    <div id="panel-dashboard" class="panel active">
+      <h1 class="page-title">📊 Dashboard Overview</h1>
+      <div class="stats-grid">
+        <div class="stat-card blue"><div class="stat-icon">📋</div><div><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total Bookings</div></div></div>
+        <div class="stat-card orange"><div class="stat-icon">⏳</div><div><div class="stat-value" id="stat-pending">0</div><div class="stat-label">Pending</div></div></div>
+        <div class="stat-card green"><div class="stat-icon">✅</div><div><div class="stat-value" id="stat-approved">0</div><div class="stat-label">Approved</div></div></div>
+        <div class="stat-card"><div class="stat-icon">👥</div><div><div class="stat-value" id="stat-users">0</div><div class="stat-label">Registered Users</div></div></div>
+        <div class="stat-card red"><div class="stat-icon">📍</div><div><div class="stat-value" id="stat-locs">0</div><div class="stat-label">Locations</div></div></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:1rem">Recent Bookings (Last 5)</h3>
+        <div class="table-wrapper" id="recentBookingsTable"></div>
+      </div>
+    </div>
+
+    <!-- All Bookings Panel -->
+    <div id="panel-bookings" class="panel">
+      <h1 class="page-title">📋 All Bookings</h1>
+      <div id="bookingAlert" class="alert"></div>
+      <div class="card">
+        <div class="table-wrapper" id="allBookingsTable"></div>
+      </div>
+    </div>
+
+    <!-- Locations Panel -->
+    <div id="panel-locations" class="panel">
+      <h1 class="page-title">📍 Manage Locations</h1>
+      <div id="locAlert" class="alert"></div>
+      <div class="card">
+        <div class="table-wrapper" id="locationsTable"></div>
+      </div>
+    </div>
+
+    <!-- Users Panel -->
+    <div id="panel-users" class="panel">
+      <h1 class="page-title">👥 Registered Users</h1>
+      <div class="card">
+        <div class="table-wrapper" id="usersTable"></div>
+      </div>
+    </div>
+
+    <!-- Add Location Panel -->
+    <div id="panel-addLocation" class="panel">
+      <h1 class="page-title">➕ Add New Location</h1>
+      <div class="card" style="max-width:580px">
+        <div id="addLocAlert" class="alert"></div>
+        <form id="addLocationForm">
+          <div class="form-group">
+            <label>Hall / Venue Name</label>
+            <input type="text" id="locName" class="form-control" placeholder="e.g. Grand Ballroom" required/>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>City</label>
+              <input type="text" id="locCity" class="form-control" placeholder="e.g. Mumbai" required/>
+            </div>
+            <div class="form-group">
+              <label>Area / Locality</label>
+              <input type="text" id="locArea" class="form-control" placeholder="e.g. Bandra West" required/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Full Address</label>
+            <input type="text" id="locAddress" class="form-control" placeholder="Street, Landmark, PIN Code" required/>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Total Capacity</label>
+              <input type="number" id="locCapacity" class="form-control" placeholder="e.g. 500" min="1" required/>
+            </div>
+            <div class="form-group">
+              <label>Rate Per Day (₹)</label>
+              <input type="number" id="locRate" class="form-control" placeholder="e.g. 75000" min="0" required/>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">➕ Add Location</button>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  if (!sessionStorage.getItem('adminId')) window.location.href = 'admin-login.html';
+  document.getElementById('adminName').textContent = '👋 ' + sessionStorage.getItem('adminName');
+
+  function showPanel(name, el) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    if (el) el.classList.add('active');
+    if (name === 'dashboard')   loadDashboard();
+    if (name === 'bookings')    loadAllBookings();
+    if (name === 'locations')   loadLocations();
+    if (name === 'users')       loadUsers();
+  }
+
+  // ── Dashboard ──────────────────────────────────────────────────────────────
+  async function loadDashboard() {
+    const data = await apiFetch('/api/dashboard');
+    document.getElementById('stat-total').textContent    = data.totalBookings;
+    document.getElementById('stat-pending').textContent  = data.pendingBookings;
+    document.getElementById('stat-approved').textContent = data.approvedBookings;
+    document.getElementById('stat-users').textContent    = data.totalUsers;
+    document.getElementById('stat-locs').textContent     = data.totalLocations;
+    const bookings = await apiFetch('/api/bookings/all');
+    document.getElementById('recentBookingsTable').innerHTML = buildBookingTable(bookings.slice(0, 5), false);
+  }
+
+  // ── All Bookings ───────────────────────────────────────────────────────────
+  async function loadAllBookings() {
+    const bookings = await apiFetch('/api/bookings/all');
+    document.getElementById('allBookingsTable').innerHTML = buildBookingTable(bookings, true);
+  }
+
+  function buildBookingTable(bookings, showActions) {
+    if (!bookings.length) return '<p style="color:#64748b;padding:1rem">No bookings found.</p>';
+    let html = `<table><thead><tr>
+      <th>#</th><th>User</th><th>Event</th><th>Date</th>
+      <th>Location</th><th>City</th><th>People</th><th>Cost</th><th>Payment Reason</th><th>Status</th>
+      ${showActions ? '<th>Actions</th>' : ''}
+    </tr></thead><tbody>`;
+    bookings.forEach(b => {
+      html += `<tr>
+        <td>${b.bookingId}</td>
+        <td>${b.userName}</td>
+        <td>${b.eventName}</td>
+        <td>${b.eventDate}</td>
+        <td>${b.locationName}</td>
+        <td>${b.city || '—'}</td>
+        <td>${b.peopleStrength}</td>
+        <td>₹${(b.totalCost||0).toLocaleString('en-IN')}</td>
+        <td>${b.paymentReason || '—'}</td>
+        <td><span class="badge badge-${b.bookingStatus.toLowerCase()}">${b.bookingStatus}</span></td>
+        ${showActions ? `<td style="white-space:nowrap">
+          ${b.bookingStatus === 'Pending' ? `
+            <button class="btn btn-success btn-sm" onclick="updateStatus(${b.bookingId},'Approved')">✅ Approve</button>
+            <button class="btn btn-danger btn-sm"  onclick="updateStatus(${b.bookingId},'Rejected')">❌ Reject</button>
+          ` : ''}
+          <button class="btn btn-danger btn-sm" onclick="deleteBooking(${b.bookingId})">🗑️</button>
+        </td>` : ''}
+      </tr>`;
+    });
+    return html + '</tbody></table>';
+  }
+
+  async function updateStatus(id, status) {
+    const res = await apiFetch('/api/bookings/status', 'POST', `bookingId=${id}&status=${status}`);
+    showAlert('bookingAlert', res.message, res.success ? 'success' : 'danger');
+    loadAllBookings();
+  }
+
+  async function deleteBooking(id) {
+    if (!confirm('Delete this booking?')) return;
+    const res = await apiFetch('/api/bookings/delete', 'POST', `bookingId=${id}`);
+    showAlert('bookingAlert', res.message, res.success ? 'success' : 'danger');
+    loadAllBookings();
+  }
+
+  // ── Locations ──────────────────────────────────────────────────────────────
+  async function loadLocations() {
+    const locs = await apiFetch('/api/locations');
+    if (!locs.length) {
+      document.getElementById('locationsTable').innerHTML = '<p style="color:#64748b;padding:1rem">No locations found.</p>';
+      return;
+    }
+    let html = `<table><thead><tr>
+      <th>#</th><th>Venue Name</th><th>City</th><th>Area</th>
+      <th>Address</th><th>Capacity</th><th>Rate/Day</th><th>Status</th>
+    </tr></thead><tbody>`;
+    locs.forEach(l => {
+      const badge = l.availableStatus === 'Available' ? 'badge-available' : 'badge-unavailable';
+      html += `<tr>
+        <td>${l.locationId}</td>
+        <td><strong>${l.locationName}</strong></td>
+        <td>🏙️ ${l.city}</td>
+        <td>${l.area}</td>
+        <td style="font-size:.82rem;max-width:200px">${l.address}</td>
+        <td>👥 ${Number(l.totalCapacity).toLocaleString()}</td>
+        <td>💰 ₹${Number(l.ratePerDay).toLocaleString('en-IN')}</td>
+        <td><span class="badge ${badge}">${l.availableStatus}</span></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('locationsTable').innerHTML = html;
+  }
+
+  // ── Users ──────────────────────────────────────────────────────────────────
+  async function loadUsers() {
+    const users = await apiFetch('/api/users/all');
+    if (!users.length) {
+      document.getElementById('usersTable').innerHTML = '<p style="color:#64748b;padding:1rem">No users found.</p>';
+      return;
+    }
+    let html = `<table><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th></tr></thead><tbody>`;
+    users.forEach(u => {
+      html += `<tr><td>${u.userId}</td><td>${u.name}</td><td>${u.email}</td><td>${u.phone}</td></tr>`;
+    });
+    document.getElementById('usersTable').innerHTML = html + '</tbody></table>';
+  }
+
+  // ── Add Location ───────────────────────────────────────────────────────────
+  document.getElementById('addLocationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const body = [
+      'locationName=' + encodeURIComponent(document.getElementById('locName').value.trim()),
+      'city='         + encodeURIComponent(document.getElementById('locCity').value.trim()),
+      'area='         + encodeURIComponent(document.getElementById('locArea').value.trim()),
+      'address='      + encodeURIComponent(document.getElementById('locAddress').value.trim()),
+      'totalCapacity='+ document.getElementById('locCapacity').value,
+      'ratePerDay='   + document.getElementById('locRate').value
+    ].join('&');
+    const res = await apiFetch('/api/locations/add', 'POST', body);
+    showAlert('addLocAlert', res.message, res.success ? 'success' : 'danger');
+    if (res.success) this.reset();
+  });
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  async function apiFetch(url, method = 'GET', body = null) {
+    const opts = { method, headers: {} };
+    if (body) { opts.body = body; opts.headers['Content-Type'] = 'application/x-www-form-urlencoded'; }
+    return fetch(url, opts).then(r => r.json());
+  }
+
+  function showAlert(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = `alert alert-${type} show`;
+    setTimeout(() => el.classList.remove('show'), 3500);
+  }
+
+  function logout() { sessionStorage.clear(); window.location.href = 'index.html'; }
+
+  loadDashboard();
+</script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Event Management System</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .hero { background: linear-gradient(135deg, #1e293b 0%, #4f46e5 60%, #7c3aed 100%); padding: 5rem 2rem 4rem; text-align: center; color: #fff; }
+    .hero h1 { font-size: 3rem; font-weight: 800; margin-bottom: .8rem; }
+    .hero p  { font-size: 1.15rem; opacity: .85; margin-bottom: 2.5rem; }
+    .portal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 700px; margin: 0 auto 2rem; }
+    .portal-card { background: rgba(255,255,255,.1); border: 1.5px solid rgba(255,255,255,.2); border-radius: 16px; padding: 2rem; text-align: center; backdrop-filter: blur(8px); transition: transform .2s; }
+    .portal-card:hover { transform: translateY(-4px); background: rgba(255,255,255,.15); }
+    .portal-card .p-icon { font-size: 3rem; margin-bottom: .8rem; }
+    .portal-card h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: .4rem; }
+    .portal-card p  { font-size: .88rem; opacity: .75; margin-bottom: 1.2rem; }
+    .portal-card .btn { width: 100%; justify-content: center; }
+
+    .section { padding: 3.5rem 2rem; max-width: 1200px; margin: 0 auto; }
+    .section-header { text-align: center; margin-bottom: 2rem; }
+    .section-header h2 { font-size: 2rem; font-weight: 800; }
+    .section-header p  { color: #64748b; margin-top: .4rem; }
+
+    .loc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+    .loc-card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,.07); overflow: hidden; border: 1px solid #e2e8f0; transition: transform .2s, box-shadow .2s; }
+    .loc-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(79,70,229,.15); }
+    .loc-card-header { background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 1.2rem 1.5rem; color: #fff; }
+    .loc-card-header h3 { font-size: 1.1rem; font-weight: 700; }
+    .loc-card-header .place { font-size: .82rem; opacity: .8; margin-top: .2rem; }
+    .loc-card-body { padding: 1.2rem 1.5rem; }
+    .loc-info { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin-bottom: 1rem; }
+    .loc-info-item { text-align: center; background: #f8fafc; border-radius: 10px; padding: .7rem; }
+    .loc-info-item .val { font-size: 1.2rem; font-weight: 800; color: #4f46e5; }
+    .loc-info-item .lbl { font-size: .75rem; color: #64748b; margin-top: .2rem; }
+    .loc-avail { display: flex; align-items: center; justify-content: space-between; padding: .6rem .8rem; border-radius: 8px; font-size: .85rem; font-weight: 600; }
+    .loc-avail.av  { background: #d1fae5; color: #065f46; }
+    .loc-avail.nav { background: #fee2e2; color: #991b1b; }
+
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.2rem; }
+    .feat { background: #fff; border-radius: 14px; padding: 1.5rem; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,.06); border-top: 3px solid #4f46e5; }
+    .feat .fi { font-size: 2.2rem; margin-bottom: .7rem; }
+    .feat h4 { font-size: 1rem; margin-bottom: .3rem; }
+    .feat p  { font-size: .85rem; color: #64748b; }
+
+    .how-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; counter-reset: step; }
+    .step { background: #fff; border-radius: 14px; padding: 1.5rem; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,.06); position: relative; }
+    .step-num { width: 40px; height: 40px; background: #4f46e5; color: #fff; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; margin-bottom: .8rem; }
+    .step h4 { font-size: .95rem; margin-bottom: .3rem; }
+    .step p  { font-size: .83rem; color: #64748b; }
+
+    footer { background: #1e293b; color: #94a3b8; text-align: center; padding: 2rem; font-size: .88rem; }
+    footer .f-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: .8rem; flex-wrap: wrap; }
+    footer .f-links a { color: #94a3b8; text-decoration: none; }
+    footer .f-links a:hover { color: #fff; }
+
+    #locLoading { text-align: center; padding: 2rem; color: #64748b; }
+    @media(max-width:640px) { .portal-grid { grid-template-columns: 1fr; } .hero h1 { font-size: 2rem; } }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="brand">🎪 Event<span>MS</span></div>
+  <div class="nav-links">
+    <a href="#locations">Locations</a>
+    <a href="user-login.html">User Login</a>
+    <a href="admin-login.html">Admin</a>
+    <a href="user-register.html" class="btn btn-white btn-sm" style="margin-left:.5rem">Register</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <h1>🎉 Event Management System</h1>
+  <p>Book premium event venues, check real-time availability, and manage everything in one place.</p>
+
+  <div class="portal-grid">
+    <div class="portal-card">
+      <div class="p-icon">👤</div>
+      <h3>User Portal</h3>
+      <p>Register, browse locations, check availability & book your event</p>
+      <a href="user-login.html" class="btn btn-white">Login as User</a>
+      <p style="margin-top:.8rem;margin-bottom:0;font-size:.8rem">New here? <a href="user-register.html" style="color:#a5b4fc">Register free →</a></p>
+    </div>
+    <div class="portal-card">
+      <div class="p-icon">🛡️</div>
+      <h3>Admin Portal</h3>
+      <p>Manage bookings, approve requests, add locations & view reports</p>
+      <a href="admin-login.html" class="btn btn-primary">Login as Admin</a>
+    </div>
+  </div>
+</section>
+
+<!-- Locations Showcase -->
+<div id="locations" style="background:#f8fafc; padding: 3.5rem 2rem;">
+  <div style="max-width:1200px;margin:0 auto">
+    <div class="section-header">
+      <h2>📍 Available Event Locations</h2>
+      <p>Browse our venues — capacity, rent, and real-time availability at a glance</p>
+    </div>
+    <div id="locLoading">⏳ Loading locations...</div>
+    <div class="loc-grid" id="locGrid" style="display:none"></div>
+  </div>
+</div>
+
+<!-- Features -->
+<div style="padding: 3.5rem 2rem; max-width:1200px; margin:0 auto">
+  <div class="section-header">
+    <h2>✨ Why Choose EventMS?</h2>
+    <p>Everything you need for seamless event management</p>
+  </div>
+  <div class="features-grid">
+    <div class="feat"><div class="fi">🔍</div><h4>Real-time Availability</h4><p>Instantly check if a venue is free on your date before booking.</p></div>
+    <div class="feat"><div class="fi">💰</div><h4>Transparent Pricing</h4><p>See rent per day upfront — no hidden charges.</p></div>
+    <div class="feat"><div class="fi">📊</div><h4>Capacity Tracking</h4><p>Know exactly how many seats remain for any date.</p></div>
+    <div class="feat"><div class="fi">✅</div><h4>Admin Approval</h4><p>Every booking is reviewed and approved by admin for quality control.</p></div>
+    <div class="feat"><div class="fi">📋</div><h4>Booking History</h4><p>Track all your past and upcoming bookings in one dashboard.</p></div>
+    <div class="feat"><div class="fi">📱</div><h4>Responsive Design</h4><p>Works perfectly on mobile, tablet, and desktop.</p></div>
+  </div>
+</div>
+
+<!-- How It Works -->
+<div style="background:#f8fafc; padding: 3.5rem 2rem;">
+  <div style="max-width:1000px;margin:0 auto">
+    <div class="section-header">
+      <h2>🚀 How It Works</h2>
+      <p>Book your event in 4 simple steps</p>
+    </div>
+    <div class="how-steps">
+      <div class="step"><div class="step-num">1</div><h4>Register / Login</h4><p>Create your free account or login to get started.</p></div>
+      <div class="step"><div class="step-num">2</div><h4>Browse Locations</h4><p>Explore venues with capacity, rent, and place details.</p></div>
+      <div class="step"><div class="step-num">3</div><h4>Check Availability</h4><p>Pick your date and verify real-time seat availability.</p></div>
+      <div class="step"><div class="step-num">4</div><h4>Submit Booking</h4><p>Fill the form and wait for admin approval — it's that simple!</p></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="f-links">
+    <a href="user-login.html">User Login</a>
+    <a href="user-register.html">Register</a>
+    <a href="admin-login.html">Admin Login</a>
+    <a href="#locations">Locations</a>
+  </div>
+  <p>© 2024 Event Management System | College Mini Project | Built with Java + MySQL + JDBC</p>
+</footer>
+
+<script>
+  async function loadLocations() {
+    try {
+      const locs = await fetch('/api/locations').then(r => r.json());
+      document.getElementById('locLoading').style.display = 'none';
+      const grid = document.getElementById('locGrid');
+      grid.style.display = 'grid';
+      if (!locs.length) { grid.innerHTML = '<p style="color:#64748b">No locations available yet.</p>'; return; }
+      grid.innerHTML = locs.map(l => `
+        <div class="loc-card">
+          <div class="loc-card-header">
+            <h3>📍 ${l.locationName}</h3>
+            <div class="place">📌 ${l.place || 'Location details available on booking'}</div>
+          </div>
+          <div class="loc-card-body">
+            <div class="loc-info">
+              <div class="loc-info-item">
+                <div class="val">${l.totalCapacity}</div>
+                <div class="lbl">Total Capacity</div>
+              </div>
+              <div class="loc-info-item">
+                <div class="val">₹${Number(l.rentPerDay).toLocaleString('en-IN')}</div>
+                <div class="lbl">Rent / Day</div>
+              </div>
+            </div>
+            <div class="loc-avail ${l.availableStatus === 'Available' ? 'av' : 'nav'}">
+              <span>${l.availableStatus === 'Available' ? '✅ Available for Booking' : '❌ Currently Unavailable'}</span>
+              <span>${l.availableStatus}</span>
+            </div>
+            <div style="margin-top:1rem;text-align:center">
+              <a href="user-login.html" class="btn btn-primary btn-sm" style="width:100%;justify-content:center">Book This Venue →</a>
+            </div>
+          </div>
+        </div>`).join('');
+    } catch {
+      document.getElementById('locLoading').textContent = '⚠️ Could not load locations. Start the Java server first.';
+    }
+  }
+  loadLocations();
+</script>
+</body>
+</html>
